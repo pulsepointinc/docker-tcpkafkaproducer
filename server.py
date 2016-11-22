@@ -24,7 +24,7 @@ class KafkaProducerTCPHandler(socketserver.StreamRequestHandler):
             value = msg.strip()
             key = self.genkey(value)
             self.server.producer.send(self.server.topic, key=key, value=value)
-            print value 
+            print (value) 
     @staticmethod
     def genkey(value):
         """Returns a str representation of a hash for the provided value."""
