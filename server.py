@@ -1,4 +1,5 @@
 import hashlib
+import logging
 import socketserver
 
 from os import environ
@@ -21,10 +22,21 @@ class KafkaProducerTCPHandler(socketserver.StreamRequestHandler):
 
     def handle(self):
         for msg in self.rfile.readlines():
+
             value = msg.strip()
             key = self.genkey(value)
-            self.server.producer.send(self.server.topic, key=key, value=value)
-            print (value) 
+            logging.info("Sending: {}".format(value.decode()))
+
+            try:
+                self.server.producer.send(self.server.topic, key=key, value=value)
+            except:
+                logging.exception("Failed to send {}".format(value.decode()))
+
+        try:
+            self.server.producer.flush(timeout=120)
+        except:
+            logging.exception("Failed to flush producer")
+
     @staticmethod
     def genkey(value):
         """Returns a str representation of a hash for the provided value."""
@@ -37,11 +49,16 @@ if __name__ == "__main__":
     listenport = int(environ["listenport"]) if "listenport" in environ else 1543
     topic = environ["topic"] if "topic" in environ else "mytopic"
     bootstrap_servers = environ["bootstrap_servers"] if "bootstrap_servers" in environ else "localhost:9092"
+    loglevel = environ["loglevel"] if "loglevel" in environ else "INFO"
+
+    level = getattr(logging, loglevel.upper())
+    logging.basicConfig(level=level)
 
     producer_conf = {
         "bootstrap_servers": bootstrap_servers,
         "key_serializer": str.encode,
-        "request_timeout_ms": 180000,
+        "retries": 3,
+        "linger_ms": 100,
         }
 
     server = socketserver.TCPServer((listenip, listenport), KafkaProducerTCPHandler)
