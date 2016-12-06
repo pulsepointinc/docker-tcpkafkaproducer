@@ -41,6 +41,7 @@ if __name__ == "__main__":
     producer_conf = {
         "bootstrap_servers": bootstrap_servers,
         "key_serializer": str.encode,
+        "request_timeout_ms": 180000,
         }
 
     server = socketserver.TCPServer((listenip, listenport), KafkaProducerTCPHandler)
