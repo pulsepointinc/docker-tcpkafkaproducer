@@ -49,7 +49,7 @@ if __name__ == "__main__":
     listenport = int(environ["listenport"]) if "listenport" in environ else 1543
     topic = environ["topic"] if "topic" in environ else "mytopic"
     bootstrap_servers = environ["bootstrap_servers"] if "bootstrap_servers" in environ else "localhost:9092"
-    loglevel = environ["loglevel"] if "loglevel" in environ else "INFO"
+    loglevel = environ["loglevel"] if "loglevel" in environ else "DEBUG"
 
     level = getattr(logging, loglevel.upper())
     logging.basicConfig(level=level)
