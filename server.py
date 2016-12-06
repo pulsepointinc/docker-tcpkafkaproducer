@@ -21,27 +21,28 @@ class KafkaProducerTCPHandler(socketserver.StreamRequestHandler):
     """
 
     def handle(self):
-        for msg in self.rfile.readlines():
+        for msg in iter(self.rfile.readline, ''.encode()):
 
-            value = msg.strip()
+            value = msg.decode().strip()
+            if value == '':
+                break
+
             key = self.genkey(value)
-            logging.info("Sending: {}".format(value.decode()))
+            logging.info("Sending: {}".format(value))
 
             try:
                 self.server.producer.send(self.server.topic, key=key, value=value)
             except:
-                logging.exception("Failed to send {}".format(value.decode()))
-
-        try:
-            self.server.producer.flush(timeout=120)
-        except:
-            logging.exception("Failed to flush producer")
+                logging.exception("Failed to send {}".format(value))
 
     @staticmethod
     def genkey(value):
         """Returns a str representation of a hash for the provided value."""
-        return hashlib.sha224(value).hexdigest()
+        return hashlib.sha224(value.encode()).hexdigest()
 
+class ThreadedTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
+    daemon_threads = True
+    allow_reuse_address = True
 
 if __name__ == "__main__":
 
@@ -49,7 +50,7 @@ if __name__ == "__main__":
     listenport = int(environ["listenport"]) if "listenport" in environ else 1543
     topic = environ["topic"] if "topic" in environ else "mytopic"
     bootstrap_servers = environ["bootstrap_servers"] if "bootstrap_servers" in environ else "localhost:9092"
-    loglevel = environ["loglevel"] if "loglevel" in environ else "DEBUG"
+    loglevel = environ["loglevel"] if "loglevel" in environ else "INFO"
 
     level = getattr(logging, loglevel.upper())
     logging.basicConfig(level=level)
@@ -57,11 +58,14 @@ if __name__ == "__main__":
     producer_conf = {
         "bootstrap_servers": bootstrap_servers,
         "key_serializer": str.encode,
+        "value_serializer": str.encode,
         "retries": 3,
         "linger_ms": 100,
         }
 
-    server = socketserver.TCPServer((listenip, listenport), KafkaProducerTCPHandler)
+    server = ThreadedTCPServer((listenip, listenport), KafkaProducerTCPHandler)
     server.producer = KafkaProducer(**producer_conf)
     server.topic = topic
+
     server.serve_forever()
+
